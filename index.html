@@ -212,321 +212,210 @@
 </div>
 
 <script>
-// ★追加：スプライト先読み
+// --- 初期設定と変数 ---
 const preloadImages = [
-    'Dark_ma.png',
-    'Dark_ma_rightstart.png',
-    'Dark_ma_right.png',
-    'Dark_ma_jump.png',
-    'Dark_ma_start.png',
-    'Dark_ma_loop.png',
-    'Dark_ma_end.png',
-    'reiya.png'
+    'Dark_ma.png', 'Dark_ma_rightstart.png', 'Dark_ma_right.png',
+    'Dark_ma_jump.png', 'Dark_ma_start.png', 'Dark_ma_loop.png',
+    'Dark_ma_end.png', 'reiya.png', 'reiya_left.png', 'reiya_hit.png', 'reiya_hit_left.png'
 ];
 
 let assetsLoaded = false;
+Promise.all(preloadImages.map(src => new Promise(resolve => {
+    const img = new Image(); img.src = src; img.onload = resolve; img.onerror = resolve;
+}))).then(() => { assetsLoaded = true; });
 
-Promise.all(
-    preloadImages.map(src => {
-        return new Promise(resolve => {
-            const img = new Image();
-            img.src = src;
-            img.onload = resolve;
-            img.onerror = resolve;
-        });
-    })
-).then(() => {
-    assetsLoaded = true;
-});
+const viewport = document.getElementById('game-viewport');
+const container = document.getElementById('char-container');
+const char = document.getElementById('character');
+const enemy = document.getElementById('enemy');
 
+function setScale() {
+    const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 960);
+    viewport.style.transform = `scale(${scale})`;
+}
+window.addEventListener('resize', setScale);
+setScale();
 
-    const viewport = document.getElementById('game-viewport');
-    const container = document.getElementById('char-container');
-    const char = document.getElementById('character');
-    const enemy = document.getElementById('enemy');
+let posX = 200, enemyPosX = 1000, velocityX = 0, inputDir = 0, lastInputDir = 0;
+let isActing = false, isAttackPressed = false, wasMoving = false;
+let hitTimer = null, walkTimer = null, stopTimer = null; // タイマー管理用
 
-    function setScale() {
-        const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 960);
-        viewport.style.transform = `scale(${scale})`;
-    }
+// --- 状態管理 (修正) ---
+function updateState(state) {
+    // 進行中のすべてのタイマーを解除（ここが重要）
+    if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
+    if (stopTimer) { clearTimeout(stopTimer); stopTimer = null; }
+    
+    char.classList.remove('idle','jump','walk-start','walk-loop','attack-start','attack-loop','attack-end');
+    char.classList.add(state);
+}
 
-    window.addEventListener('resize', setScale);
-    setScale();
-
-    let posX = 200;
-    let enemyPosX = 1000;
-    let velocityX = 0;
-    let inputDir = 0;
-    let isActing = false;
-    let isAttackPressed = false;
-
-    // ★追加：直前まで走っていたか
-    let wasMoving = false;
-
-    function updateState(state) {
-        char.classList.remove(
-            'idle',
-            'jump',
-            'walk-start',
-            'walk-loop',
-            'attack-start',
-            'attack-loop',
-            'attack-end'
-        );
-        char.classList.add(state);
-    }
-
-    function update() {
-
-    if (!assetsLoaded) {
-        requestAnimationFrame(update);
-        return;
-    }
-
-        const canMove = !isActing || char.classList.contains('jump');
-
-        if (canMove) {
-            if (inputDir !== 0) {
-                velocityX += inputDir * 1.5;
-                char.classList.toggle('flip', inputDir === -1);
-            } else {
-                velocityX *= 0.7;
-            }
-        }
-
-        velocityX *= 0.9;
-        posX += velocityX;
-
-        // ★追加：急停止判定
-        const isMovingNow = Math.abs(velocityX) > 1;
-
-        if (wasMoving && !isMovingNow && !isActing) {
-            isActing = true;
-
-            updateState('attack-end');
-
-            const isFlipped = char.classList.contains('flip');
-            posX += isFlipped ? 3 : -3;
-
-            setTimeout(() => {
-                isActing = false;
-                updateState('idle');
-            }, 400);
-        }
-
-        wasMoving = isMovingNow;
-
-        if (posX < 60) posX = 60;
-        if (posX > 1220) posX = 1220;
-        if (enemyPosX < 60) enemyPosX = 60;
-        if (enemyPosX > 1220) enemyPosX = 1220;
-
-        container.style.left = posX + 'px';
-        enemy.style.left = enemyPosX + 'px';
-
-        if (!isActing) {
-            const speed = Math.abs(velocityX);
-
-            if (!char.classList.contains('jump')) {
-                if (speed > 1) {
-                    if (!char.classList.contains('walk-start') &&
-                        !char.classList.contains('walk-loop')) {
-                        updateState('walk-start');
-                        setTimeout(() => {
-                            if (!isActing && inputDir !== 0) {
-                                updateState('walk-loop');
-                            }
-                        }, 200);
-                    }
-                } else {
-                    if (char.classList.contains('walk-loop') ||
-                        char.classList.contains('walk-start')) {
-                        updateState('idle');
-                    }
-                }
-            }
-        }
-
-        requestAnimationFrame(update);
-    }
-
-    update();
-
-        let hitTimer = null; // 敵の喰らい硬直管理用
-
+// --- ヒット判定 ---
     function checkHit(isFlipped) {
         const dist = Math.abs(posX - enemyPosX);
         const enemyIsRight = enemyPosX > posX;
         const isFacingEnemy = (enemyIsRight && !isFlipped) || (!enemyIsRight && isFlipped);
 
-        if (dist < 200 && isFacingEnemy) {
-            // ノックバック
+        if (dist < 250 && isFacingEnemy) {
+            // 1. ヒット中のノックバック（攻撃が当たるたび）
             enemyPosX += (enemyIsRight) ? 35 : -35;
             
-            // 向き
             if (enemyIsRight) enemy.classList.add('face-left');
             else enemy.classList.remove('face-left');
 
-            // ヒット状態（固定画像）にする
-            enemy.classList.add('hit');
+            if (!enemy.classList.contains('hit')) {
+                enemy.classList.add('hit');
+            }
 
-            // タイマーをリセットして延長（300ms間、次の攻撃がなければ戻る）
+            // 連続ヒット対応のタイマー
             if (hitTimer) clearTimeout(hitTimer);
+            
             hitTimer = setTimeout(() => {
+                // ★追加：ヒット終了時の「後ろに下がる」演出
+                // face-left なら右へ、そうでなければ左へ
+                const backstep = enemy.classList.contains('face-left') ? 30 : -30;
+                enemyPosX += backstep;
+
+                // 状態解除
                 enemy.classList.remove('hit');
                 hitTimer = null;
-            }, 300);
+            }, 400); 
         }
     }
 
-   // 独立した停止アクション関数
-    async function runStopAction() {
-        if (isActing) return;
-        isActing = true;
-        
-        updateState('attack-end');
-        
-        // わずかに慣性で動かす
-        const isFlipped = char.classList.contains('flip');
-        const slide = isFlipped ? 5 : -5;
-        
-        await new Promise(r => setTimeout(r, 300)); // attack-endの再生時間
-        
+
+// --- 停止アクション (修正) ---
+function runStopAction() {
+    if (isActing) return;
+    isActing = true;
+    updateState('attack-end');
+    
+    // 300ms後に待機に戻る予約
+    stopTimer = setTimeout(() => {
         isActing = false;
-        // 止まった後に追加入力があれば歩き、なければ待機
+        stopTimer = null;
+        updateState(inputDir !== 0 ? 'walk-start' : 'idle');
+    }, 300);
+}
+
+// --- メインループ (修正) ---
+function update() {
+    if (!assetsLoaded) { requestAnimationFrame(update); return; }
+
+    // ★割り込み処理：停止モーション中に移動入力があったら強制キャンセル
+    if (isActing && char.classList.contains('attack-end') && inputDir !== 0) {
+        isActing = false;
+        if (stopTimer) { clearTimeout(stopTimer); stopTimer = null; }
+        updateState('walk-start');
+    }
+
+    const canMove = !isActing || char.classList.contains('jump');
+    if (canMove) {
         if (inputDir !== 0) {
-            updateState('walk-start');
+            // 切り返し時のアニメーション強制更新
+            if (inputDir !== lastInputDir && !char.classList.contains('jump')) {
+                updateState('walk-start');
+                walkTimer = setTimeout(() => {
+                    if (!isActing && inputDir !== 0) updateState('walk-loop');
+                }, 200);
+            }
+            velocityX += inputDir * 1.5;
+            char.classList.toggle('flip', inputDir === -1);
         } else {
-            updateState('idle');
+            velocityX *= 0.7;
         }
     }
+    lastInputDir = inputDir;
+    velocityX *= 0.9;
+    posX += velocityX;
 
-    function update() {
-        if (!assetsLoaded) {
-            requestAnimationFrame(update);
-            return;
-        }
-
-        const canMove = !isActing || char.classList.contains('jump');
-
-        if (canMove) {
-            if (inputDir !== 0) {
-                velocityX += inputDir * 1.5;
-                char.classList.toggle('flip', inputDir === -1);
-            } else {
-                velocityX *= 0.7;
-            }
-        }
-
-        velocityX *= 0.9;
-        posX += velocityX;
-
-        // 急停止の検知
-        const isMovingNow = Math.abs(velocityX) > 1;
-        if (wasMoving && !isMovingNow && !isActing && !char.classList.contains('jump')) {
-            runStopAction();
-        }
-        wasMoving = isMovingNow;
-
-        // 画面端の制限
-        if (posX < 60) posX = 60;
-        if (posX > 1220) posX = 1220;
-        if (enemyPosX < 60) enemyPosX = 60;
-        if (enemyPosX > 1220) enemyPosX = 1220;
-
-        container.style.left = posX + 'px';
-        enemy.style.left = enemyPosX + 'px';
-
-        // 通常のアニメーション更新
-        if (!isActing) {
-            const speed = Math.abs(velocityX);
-            if (!char.classList.contains('jump')) {
-                if (speed > 1) {
-                    if (!char.classList.contains('walk-start') && !char.classList.contains('walk-loop')) {
-                        updateState('walk-start');
-                        setTimeout(() => {
-                            if (!isActing && inputDir !== 0) updateState('walk-loop');
-                        }, 200);
-                    }
-                } else {
-                    // スピードが落ちた時、かつ停止アクション中でなければidleへ
-                    if (char.className !== 'idle') {
-                        updateState('idle');
-                    }
-                }
-            }
-        }
-        requestAnimationFrame(update);
+    const isMovingNow = Math.abs(velocityX) > 1;
+    // 入力が止まっている時だけ停止アクションへ
+    if (wasMoving && !isMovingNow && !isActing && inputDir === 0 && !char.classList.contains('jump')) {
+        runStopAction();
     }
+    wasMoving = isMovingNow;
 
+    // 見切れ防止
+    const margin = 128;
+    if (posX < margin) posX = margin;
+    if (posX > 1280 - margin) posX = 1280 - margin;
+    if (enemyPosX < margin) enemyPosX = margin;
+    if (enemyPosX > 1280 - margin) enemyPosX = 1280 - margin;
 
-    async function runAttack() {
-        if (isActing) return;
-        isActing = true;
+    container.style.left = posX + 'px';
+    enemy.style.left = enemyPosX + 'px';
 
-        const isFlipped = char.classList.contains('flip');
+    if (!isActing) {
         const speed = Math.abs(velocityX);
-        const isMoving = speed > 1;
-
-        if (!isMoving) {
-            updateState('attack-start');
-            await new Promise(r => setTimeout(r, 400));
+        if (!char.classList.contains('jump')) {
+            if (speed > 1) {
+                if (!char.classList.contains('walk-start') && !char.classList.contains('walk-loop')) {
+                    updateState('walk-start');
+                    walkTimer = setTimeout(() => {
+                        if (!isActing && inputDir !== 0) updateState('walk-loop');
+                    }, 200);
+                }
+            } else {
+                if (!char.classList.contains('idle')) updateState('idle');
+            }
         }
+    }
+    requestAnimationFrame(update);
+}
+update();
 
-        const stepForward = isMoving ? 40 : 25;
-        posX += isFlipped ? -stepForward : stepForward;
+// --- アクション関連 ---
+async function runAttack() {
+    if (isActing) return;
+    isActing = true;
+    const isFlipped = char.classList.contains('flip');
+    const isMoving = Math.abs(velocityX) > 1;
 
-        updateState('attack-loop');
-        checkHit(isFlipped);
+    if (!isMoving) {
+        updateState('attack-start');
+        await new Promise(r => setTimeout(r, 400));
+    }
 
-        let loopCount = 0;
-        while (isAttackPressed || loopCount < 1) {
-            await new Promise(r => setTimeout(r, 300));
-            loopCount++;
-            if (isAttackPressed) checkHit(isFlipped);
-        }
+    posX += isFlipped ? -40 : 40;
+    updateState('attack-loop');
+    checkHit(isFlipped);
 
-        updateState('attack-end');
+    let loopCount = 0;
+    while (isAttackPressed || loopCount < 1) {
         await new Promise(r => setTimeout(r, 300));
-
-        isActing = false;
-        updateState(inputDir !== 0 ? 'walk-loop' : 'idle');
+        loopCount++;
+        if (isAttackPressed) checkHit(isFlipped);
     }
 
-    async function runJump() {
-        if (isActing) return;
-        isActing = true;
-        updateState('jump');
-        await new Promise(r => setTimeout(r, 500));
-        isActing = false;
-        updateState('idle');
-    }
+    updateState('attack-end');
+    await new Promise(r => setTimeout(r, 300));
+    isActing = false;
+    updateState(inputDir !== 0 ? 'walk-loop' : 'idle');
+}
 
-    const setupBtn = (id, down, up) => {
-        const el = document.getElementById(id);
-        const start = e => { e.preventDefault(); down(); };
-        const stop  = e => { e.preventDefault(); up(); };
-        el.addEventListener('touchstart', start);
-        el.addEventListener('mousedown', start);
-        el.addEventListener('touchend', stop);
-        el.addEventListener('mouseup', stop);
-    };
+async function runJump() {
+    if (isActing) return;
+    isActing = true;
+    updateState('jump');
+    await new Promise(r => setTimeout(r, 500));
+    isActing = false;
+    updateState(inputDir !== 0 ? 'walk-start' : 'idle');
+}
 
-    setupBtn('btnLeft',  () => inputDir = -1, () => inputDir = 0);
-    setupBtn('btnRight', () => inputDir = 1,  () => inputDir = 0);
-    setupBtn('btnA', () => {
-        isAttackPressed = true;
-        runAttack();
-    }, () => isAttackPressed = false);
+const setupBtn = (id, down, up) => {
+    const el = document.getElementById(id);
+    const start = e => { e.preventDefault(); down(); };
+    const stop  = e => { e.preventDefault(); up(); };
+    el.addEventListener('touchstart', start); el.addEventListener('mousedown', start);
+    el.addEventListener('touchend', stop); el.addEventListener('mouseup', stop);
+};
 
-    document.getElementById('btnB').addEventListener('touchstart', e => {
-        e.preventDefault();
-        runJump();
-    });
-    document.getElementById('btnB').addEventListener('mousedown', e => {
-        e.preventDefault();
-        runJump();
-    });
+setupBtn('btnLeft',  () => inputDir = -1, () => inputDir = 0);
+setupBtn('btnRight', () => inputDir = 1,  () => inputDir = 0);
+setupBtn('btnA', () => { isAttackPressed = true; runAttack(); }, () => isAttackPressed = false);
+document.getElementById('btnB').addEventListener('touchstart', e => { e.preventDefault(); runJump(); });
+document.getElementById('btnB').addEventListener('mousedown', e => { e.preventDefault(); runJump(); });
 </script>
 </body>
 </html>
