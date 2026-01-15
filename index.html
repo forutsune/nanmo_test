@@ -196,6 +196,34 @@
 </div>
 
 <script>
+// ★追加：スプライト先読み
+const preloadImages = [
+    'Dark_ma.png',
+    'Dark_ma_rightstart.png',
+    'Dark_ma_right.png',
+    'Dark_ma_jump.png',
+    'Dark_ma_start.png',
+    'Dark_ma_loop.png',
+    'Dark_ma_end.png',
+    'reiya.png'
+];
+
+let assetsLoaded = false;
+
+Promise.all(
+    preloadImages.map(src => {
+        return new Promise(resolve => {
+            const img = new Image();
+            img.src = src;
+            img.onload = resolve;
+            img.onerror = resolve;
+        });
+    })
+).then(() => {
+    assetsLoaded = true;
+});
+
+
     const viewport = document.getElementById('game-viewport');
     const container = document.getElementById('char-container');
     const char = document.getElementById('character');
@@ -233,6 +261,12 @@
     }
 
     function update() {
+
+    if (!assetsLoaded) {
+        requestAnimationFrame(update);
+        return;
+    }
+
         const canMove = !isActing || char.classList.contains('jump');
 
         if (canMove) {
