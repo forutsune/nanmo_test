@@ -28,11 +28,16 @@
             position: relative;
             width: 1280px;
             height: 960px;
-            background-color: #aaa;
+            background-color: #aaa; /* デフォルトの背景色 */
+            background-image: url('background.png'); /* ★追加：背景画像 */
+            background-size: cover; /* ★追加：画面いっぱいに表示し、アスペクト比を維持 */
+            background-position: center; /* ★追加：画像を中央に配置 */
+            image-rendering: pixelated; /* ★追加：ぼやけずドット絵感を維持 */
             overflow: hidden;
             flex-shrink: 0;
             box-shadow: 0 0 40px rgba(0,0,0,0.5);
         }
+
 
         #char-container,
         #enemy {
