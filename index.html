@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Action Game - Refined</title>
+    <title>Action Game - Hit Test Fixed</title>
     
     <style>
         :root {
             --w: 64px; 
             --h: 64px;
-            --scale: 3;
+            --scale: 6;
         }
 
         body {
@@ -26,12 +26,27 @@
             overflow: hidden;
         }
 
-        /* キャラクターの配置設定 */
+        /* 自分の配置 */
         #char-container {
             position: absolute;
-            left: 50%;
             top: 250px;
-            transform: translateX(-50%);
+        }
+
+        /* 敵の配置 */
+        /* 敵キャラのスタイル修正 */
+        #enemy {
+            position: absolute;
+            width: var(--w);
+            height: var(--h);
+            top: 250px;
+            transform: scale(var(--scale));
+            image-rendering: pixelated;
+            background-image: url('reiya.png'); 
+            background-repeat: no-repeat;
+            transition: filter 0.1s; 
+            
+            /* --- ここを追加：待機アニメーションを適用 --- */
+            animation: play-6 0.6s steps(6) infinite;
         }
 
         #character {
@@ -43,48 +58,18 @@
             background-size: auto 100%;
         }
 
-        /* --- アニメーション定義 --- */
-        .idle { 
-            background-image: url('Dark_ma.png'); 
-            animation: play-6 0.6s steps(6) infinite; 
-        }
+        /* アニメーション */
+        .idle { background-image: url('Dark_ma.png'); animation: play-6 0.6s steps(6) infinite; }
+        .walk-start { background-image: url('Dark_ma_rightstart.png'); animation: play-2 0.2s steps(2) forwards; }
+        .walk-loop { background-image: url('Dark_ma_right.png'); animation: play-7 0.7s steps(7) infinite; }
+        .jump { background-image: url('Dark_ma_jump.png'); animation: play-5 0.5s steps(5) forwards; }
+        .attack-start { background-image: url('Dark_ma_start.png'); animation: play-4 0.4s steps(4) forwards; }
+        .attack-loop { background-image: url('Dark_ma_loop.png'); animation: play-5 0.5s steps(5) infinite; }
+        .attack-end { background-image: url('Dark_ma_end.png'); animation: play-3 0.3s steps(3) forwards; }
 
-        .walk-start { 
-            background-image: url('Dark_ma_rightstart.png'); 
-            animation: play-2 0.2s steps(2) forwards; 
-        }
+        .flip { transform: scale(var(--scale)) scaleX(-1) !important; }
+        .hit-effect { filter: brightness(10) !important; }
 
-        .walk-loop { 
-            background-image: url('Dark_ma_right.png'); 
-            animation: play-7 0.7s steps(7) infinite; 
-        }
-
-        .jump { 
-            background-image: url('Dark_ma_jump.png'); 
-            animation: play-5 0.5s steps(5) forwards; 
-        }
-
-        .attack-start { 
-            background-image: url('Dark_ma_start.png'); 
-            animation: play-4 0.4s steps(4) forwards; 
-        }
-
-        .attack-loop { 
-            background-image: url('Dark_ma_loop.png'); 
-            animation: play-5 0.5s steps(5) infinite; 
-        }
-
-        .attack-end { 
-            background-image: url('Dark_ma_end.png'); 
-            animation: play-3 0.3s steps(3) forwards; 
-        }
-
-        /* 向き反転（左向き） */
-        .flip { 
-            transform: scale(var(--scale)) scaleX(-1) !important; 
-        }
-
-        /* キーフレーム（コマ送り） */
         @keyframes play-7 { from { background-position: 0 0; } to { background-position: calc(var(--w) * -7) 0; } }
         @keyframes play-6 { from { background-position: 0 0; } to { background-position: calc(var(--w) * -6) 0; } }
         @keyframes play-5 { from { background-position: 0 0; } to { background-position: calc(var(--w) * -5) 0; } }
@@ -92,55 +77,42 @@
         @keyframes play-3 { from { background-position: 0 0; } to { background-position: calc(var(--w) * -3) 0; } }
         @keyframes play-2 { from { background-position: 0 0; } to { background-position: calc(var(--w) * -2) 0; } }
 
-        /* --- 操作ボタン UI --- */
         .ui-root {
-            position: fixed;
-            bottom: 40px;
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            padding: 0 30px;
-            box-sizing: border-box;
+            position: fixed; bottom: 40px; width: 100%;
+            display: flex; justify-content: space-between;
+            padding: 0 30px; box-sizing: border-box;
         }
 
         .btn {
-            width: 85px;
-            height: 85px;
-            border-radius: 50%;
-            border: none;
-            color: white;
-            font-size: 1.8rem;
-            font-weight: bold;
-            background: #555;
-            box-shadow: 0 8px #222;
-            user-select: none;
-            touch-action: manipulation;
+            width: 85px; height: 85px; border-radius: 50%; border: none;
+            color: white; font-size: 1.8rem; font-weight: bold;
+            background: #555; box-shadow: 0 8px #222;
+            user-select: none; touch-action: manipulation;
         }
-
         #btnA { background: #e74c3c; box-shadow: 0 8px #c0392b; }
         #btnB { background: #3498db; box-shadow: 0 8px #2980b9; }
-
-        .btn:active {
-            transform: translateY(6px);
-            box-shadow: 0 2px rgba(0,0,0,0.5);
-        }
+        .btn:active { transform: translateY(6px); box-shadow: 0 2px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
 
     <div id="preload" style="display:none">
         <img src="Dark_ma.png">
-		  <img src="Dark_ma_rightstart.png">
-		  <img src="Dark_ma_right.png">
+        <img src="reiya.png">
+        <img src="Dark_ma_rightstart.png">
+        <img src="Dark_ma_right.png">
         <img src="Dark_ma_jump.png">
-		  <img src="Dark_ma_start.png">
-		  <img src="Dark_ma_loop.png">
-		  <img src="Dark_ma_end.png">
+        <img src="Dark_ma_start.png">
+        <img src="Dark_ma_loop.png">
+        <img src="Dark_ma_end.png">
     </div>
+
 
     <div id="char-container">
         <div id="character" class="idle"></div>
     </div>
+
+    <div id="enemy"></div>
 
     <div class="ui-root">
         <div class="d-pad">
@@ -156,70 +128,61 @@
     <script>
         const container = document.getElementById('char-container');
         const char = document.getElementById('character');
+        const enemy = document.getElementById('enemy');
 
-        // --- ゲーム内変数 ---
         let posX = window.innerWidth / 2;
         let velocityX = 0;
         const acceleration = 1; 
         const friction = 0.9;    
         const maxSpeed = 8;       
 
-        let inputDir = 0;         // 向き入力（-1, 0, 1）
-        let isActing = false;     // アクション（攻撃・ジャンプ）中か
+        let inputDir = 0;
+        let isActing = false;
         let isAttackPressed = false;
 
-        // --- 状態切り替え関数 ---
+        // 敵の座標管理
+        let enemyPosX = window.innerWidth * 0.75;
+
         function updateState(state) {
             char.classList.remove('idle', 'jump', 'walk-start', 'walk-loop', 'attack-start', 'attack-loop', 'attack-end');
             char.classList.add(state);
         }
 
-        // --- メインループ ---
         function update() {
             const canMove = !isActing || char.classList.contains('jump');
 
             if (canMove) {
                 if (inputDir !== 0) {
-                    // 切り返し加速（逆方向に押したとき一気に引き戻す）
                     if (inputDir > 0 && velocityX < 0) velocityX += acceleration * 2.5;
                     else if (inputDir < 0 && velocityX > 0) velocityX -= acceleration * 2.5;
                     else velocityX += inputDir * acceleration;
-
-                    // 向き反転クラスの適用
                     if (inputDir === -1) char.classList.add('flip');
                     else char.classList.remove('flip');
                 } else {
-                    // ボタンを離した時の急減速
                     velocityX *= 0.6; 
                 }
             }
 
-            // 物理計算
             velocityX *= friction;
             if (Math.abs(velocityX) < 0.1) velocityX = 0;
             posX += velocityX;
 
-            // 画面外防止
             if (posX < 50) { posX = 50; velocityX = 0; }
             if (posX > window.innerWidth - 50) { posX = window.innerWidth - 50; velocityX = 0; }
+            
+            // 自分と敵の座標を反映
             container.style.left = posX + 'px';
+            enemy.style.left = enemyPosX + 'px';
 
-            // アニメーション判定（アクション中でない場合）
             if (!isActing) {
                 const speed = Math.abs(velocityX);
-
                 if (speed > 0.5) {
-                    // --- 修正箇所：初動を優先的に見せる ---
-                    // walk-startがまだ再生されていないなら、まずは必ずstartから
                     if (!char.classList.contains('walk-start') && !char.classList.contains('walk-loop')) {
                         updateState('walk-start');
-                    } 
-                    // 一定以上の速度になり、かつ walk-start を経由した後なら loop へ
-                    else if (speed > 5.0 && char.classList.contains('walk-start')) {
+                    } else if (speed > 5.0 && char.classList.contains('walk-start')) {
                         updateState('walk-loop');
                     }
                 } else {
-                    // 完全に停止
                     if (char.classList.contains('walk-loop') || char.classList.contains('walk-start')) {
                         runBrake(); 
                     } else if (!char.classList.contains('attack-end')) {
@@ -227,25 +190,18 @@
                     }
                 }
             }
-
             requestAnimationFrame(update);
         }
         update();
 
-        // --- アクション：ブレーキ（3px戻る演出） ---
         async function runBrake() {
             if (isActing) return;
             isActing = true;
-
             const isFlipped = char.classList.contains('flip');
-            posX += isFlipped ? 3 : -3; // 揺り戻し
-            container.style.left = posX + 'px';
-
+            posX += isFlipped ? 3 : -3;
             updateState('attack-end'); 
             await new Promise(r => setTimeout(r, 200));
-
             isActing = false;
-            // 終了時に入力があれば移動に繋ぎ、なければ待機
             updateState(inputDir !== 0 ? 'walk-loop' : 'idle'); 
         }
 
@@ -257,52 +213,83 @@
             const isMoving = Math.abs(velocityX) > 1.0;
             const isFlipped = char.classList.contains('flip');
             
-            // 踏み込み
+            // 1. 踏み込み（移動中なら大きく、立ちなら小さく）
             if (isFlipped) posX -= isMoving ? 12 : 6; 
             else posX += isMoving ? 12 : 6;
-            container.style.left = posX + 'px';
 
+            // 2. アニメーションの分岐
             if (isMoving) {
-                // 移動中は初動をスキップ
+                // 移動中攻撃：即座にループへ
                 updateState('attack-loop');
-                await new Promise(r => setTimeout(r, 200)); 
+                checkHit(isFlipped); // 当たり判定
+                await new Promise(r => setTimeout(r, 300)); // 最低でも0.3秒はループを見せる
             } else {
+                // 立ち攻撃：溜め(start)をしっかり再生
                 updateState('attack-start');
-                await new Promise(r => setTimeout(r, 400));
+                await new Promise(r => setTimeout(r, 400)); // 0.4秒待機
+                
+                // 振り下ろし(loop)へ移行
                 updateState('attack-loop');
-                await new Promise(r => setTimeout(r, 500)); 
+                checkHit(isFlipped); // ここで攻撃判定を発生させる
+                await new Promise(r => setTimeout(r, 300)); // 0.3秒待機
             }
 
-            // ボタンが離されるまでループ維持
-            while (isAttackPressed) { await new Promise(r => setTimeout(r, 100)); }
+            // 3. ボタン長押し対応（押しっぱなしなら loop を継続）
+            while (isAttackPressed) { 
+                await new Promise(r => setTimeout(r, 100)); 
+            }
 
+            // 4. 振り終わり（硬直）
             updateState('attack-end');
             await new Promise(r => setTimeout(r, 300));
             
+            // 5. 状態リセット
             isActing = false; 
-            // 攻撃後にボタンが押されていれば「初動」から再開
+            // 攻撃終了時、移動ボタンが押されていれば「歩き出し」へ、なければ「待機」へ
             updateState(inputDir !== 0 ? 'walk-start' : 'idle');
         }
 
-        // --- アクション：ジャンプ ---
+        // --- 当たり判定とヒット演出 ---
+        function checkHit(isFlipped) {
+            const dist = Math.abs(posX - enemyPosX);
+            const enemyIsRight = enemyPosX > posX;
+            const isFacingEnemy = (enemyIsRight && !isFlipped) || (!enemyIsRight && isFlipped);
+
+            if (dist < 120 && isFacingEnemy) {
+                enemy.classList.add('hit-effect');
+                
+                // 吹き飛ばし
+                const knockback = (enemyPosX > posX) ? 40 : -40;
+                enemyPosX += knockback;
+                enemy.style.left = enemyPosX + 'px';
+
+                // --- 追加：攻撃されたらプレイヤーの方を向かせる ---
+                if (enemyIsRight) {
+                    enemy.classList.add('flip'); // 右側にいる敵が左（プレイヤー側）を向く
+                } else {
+                    enemy.classList.remove('flip'); // 左側にいる敵が右（プレイヤー側）を向く
+                }
+
+                setTimeout(() => {
+                    enemy.classList.remove('hit-effect');
+                }, 100);
+            }
+        }
+
+
+
         async function runJump() {
             if (isActing) return;
             isActing = true;
-
-            const isMoving = Math.abs(velocityX) > 0.5;
-            if (isMoving) { 
+            if (Math.abs(velocityX) > 0.5) { 
                 posX += char.classList.contains('flip') ? -5 : 5; 
-                container.style.left = posX + 'px'; 
             }
-
             updateState('jump');
             await new Promise(r => setTimeout(r, 500));
-
             isActing = false; 
             updateState(inputDir !== 0 ? 'walk-loop' : 'idle');
         }
 
-        // --- 入力イベント管理 ---
         const setupBtn = (id, down, up) => {
             const el = document.getElementById(id);
             const start = (e) => { e.preventDefault(); down(); };
@@ -315,12 +302,10 @@
 
         setupBtn('btnLeft', () => inputDir = -1, () => inputDir = 0);
         setupBtn('btnRight', () => inputDir = 1, () => inputDir = 0);
-
         document.getElementById('btnA').addEventListener('mousedown', (e) => { isAttackPressed = true; runAttack(); });
         document.getElementById('btnA').addEventListener('touchstart', (e) => { isAttackPressed = true; runAttack(); });
         document.getElementById('btnB').addEventListener('mousedown', () => runJump());
         document.getElementById('btnB').addEventListener('touchstart', () => runJump());
-
         window.addEventListener('mouseup', () => isAttackPressed = false);
         window.addEventListener('touchend', () => isAttackPressed = false);
     </script>
