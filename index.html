@@ -399,14 +399,33 @@ async function runAttack() {
     updateState(inputDir !== 0 ? 'walk-loop' : 'idle');
 }
 
-async function runJump() {
-    if (isActing) return;
-    isActing = true;
-    updateState('jump');
-    await new Promise(r => setTimeout(r, 500));
-    isActing = false;
-    updateState(inputDir !== 0 ? 'walk-start' : 'idle');
-}
+    async function runJump() {
+        if (isActing) return;
+        isActing = true;
+        updateState('jump');
+        
+        // ジャンプの滞空時間（500ms）待機
+        await new Promise(r => setTimeout(r, 500));
+        
+        isActing = false;
+        
+        // ★修正：着地した瞬間の入力状態で分岐
+        if (inputDir !== 0) {
+            // 移動入力があれば「移動初動」へ
+            updateState('walk-start');
+            // さらに 200ms 後にループへ繋げる予約
+            walkTimer = setTimeout(() => {
+                if (!isActing && inputDir !== 0) {
+                    char.classList.remove('walk-start');
+                    char.classList.add('walk-loop');
+                }
+            }, 200);
+        } else {
+            // 入力がなければ待機へ
+            updateState('idle');
+        }
+    }
+
 
 const setupBtn = (id, down, up) => {
     const el = document.getElementById(id);
