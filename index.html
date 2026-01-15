@@ -53,8 +53,19 @@
 
         #enemy.face-left {
             background-image: url('reiya_left.png');
-            transform: scale(var(--scale));
+
         }
+
+#enemy.hit {
+    background-image: url('reiya_hit.png') !important;
+    /* steps(2) で 0.2秒間隔で2枚をループ再生 */
+    animation: play-2 0.2s steps(2) infinite !important;
+}
+
+#enemy.face-left.hit {
+    background-image: url('reiya_hit_left.png') !important;
+    animation: play-2 0.2s steps(2) infinite !important;
+}
 
         #character {
             width: var(--w);
@@ -300,7 +311,7 @@ Promise.all(
             setTimeout(() => {
                 isActing = false;
                 updateState('idle');
-            }, 300);
+            }, 400);
         }
 
         wasMoving = isMovingNow;
@@ -341,27 +352,112 @@ Promise.all(
 
     update();
 
-        function checkHit(isFlipped) {
-            const dist = Math.abs(posX - enemyPosX);
-            const enemyIsRight = enemyPosX > posX;
-            const isFacingEnemy = (enemyIsRight && !isFlipped) || (!enemyIsRight && isFlipped);
+        let hitTimer = null; // 敵の喰らい硬直管理用
 
-            if (dist < 200 && isFacingEnemy) {
-                enemy.classList.add('hit-effect');
-                enemyPosX += (enemyIsRight) ? 35 : -35;
+    function checkHit(isFlipped) {
+        const dist = Math.abs(posX - enemyPosX);
+        const enemyIsRight = enemyPosX > posX;
+        const isFacingEnemy = (enemyIsRight && !isFlipped) || (!enemyIsRight && isFlipped);
 
-                // 【修正】向きによってクラスを切り替える
-                if (enemyIsRight) {
-                    // プレイヤーが左にいて、敵が右に飛ばされる時（左を向く）
-                    enemy.classList.add('face-left');
-                } else {
-                    // プレイヤーが右にいて、敵が左に飛ばされる時（右を向く）
-                    enemy.classList.remove('face-left');
-                }
+        if (dist < 200 && isFacingEnemy) {
+            // ノックバック
+            enemyPosX += (enemyIsRight) ? 35 : -35;
+            
+            // 向き
+            if (enemyIsRight) enemy.classList.add('face-left');
+            else enemy.classList.remove('face-left');
 
-                setTimeout(() => enemy.classList.remove('hit-effect'), 100);
+            // ヒット状態（固定画像）にする
+            enemy.classList.add('hit');
+
+            // タイマーをリセットして延長（300ms間、次の攻撃がなければ戻る）
+            if (hitTimer) clearTimeout(hitTimer);
+            hitTimer = setTimeout(() => {
+                enemy.classList.remove('hit');
+                hitTimer = null;
+            }, 300);
+        }
+    }
+
+   // 独立した停止アクション関数
+    async function runStopAction() {
+        if (isActing) return;
+        isActing = true;
+        
+        updateState('attack-end');
+        
+        // わずかに慣性で動かす
+        const isFlipped = char.classList.contains('flip');
+        const slide = isFlipped ? 5 : -5;
+        
+        await new Promise(r => setTimeout(r, 300)); // attack-endの再生時間
+        
+        isActing = false;
+        // 止まった後に追加入力があれば歩き、なければ待機
+        if (inputDir !== 0) {
+            updateState('walk-start');
+        } else {
+            updateState('idle');
+        }
+    }
+
+    function update() {
+        if (!assetsLoaded) {
+            requestAnimationFrame(update);
+            return;
+        }
+
+        const canMove = !isActing || char.classList.contains('jump');
+
+        if (canMove) {
+            if (inputDir !== 0) {
+                velocityX += inputDir * 1.5;
+                char.classList.toggle('flip', inputDir === -1);
+            } else {
+                velocityX *= 0.7;
             }
         }
+
+        velocityX *= 0.9;
+        posX += velocityX;
+
+        // 急停止の検知
+        const isMovingNow = Math.abs(velocityX) > 1;
+        if (wasMoving && !isMovingNow && !isActing && !char.classList.contains('jump')) {
+            runStopAction();
+        }
+        wasMoving = isMovingNow;
+
+        // 画面端の制限
+        if (posX < 60) posX = 60;
+        if (posX > 1220) posX = 1220;
+        if (enemyPosX < 60) enemyPosX = 60;
+        if (enemyPosX > 1220) enemyPosX = 1220;
+
+        container.style.left = posX + 'px';
+        enemy.style.left = enemyPosX + 'px';
+
+        // 通常のアニメーション更新
+        if (!isActing) {
+            const speed = Math.abs(velocityX);
+            if (!char.classList.contains('jump')) {
+                if (speed > 1) {
+                    if (!char.classList.contains('walk-start') && !char.classList.contains('walk-loop')) {
+                        updateState('walk-start');
+                        setTimeout(() => {
+                            if (!isActing && inputDir !== 0) updateState('walk-loop');
+                        }, 200);
+                    }
+                } else {
+                    // スピードが落ちた時、かつ停止アクション中でなければidleへ
+                    if (char.className !== 'idle') {
+                        updateState('idle');
+                    }
+                }
+            }
+        }
+        requestAnimationFrame(update);
+    }
 
 
     async function runAttack() {
