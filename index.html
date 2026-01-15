@@ -51,6 +51,11 @@
             transition: filter 0.1s;
         }
 
+        #enemy.face-left {
+            background-image: url('reiya_left.png');
+            transform: scale(var(--scale));
+        }
+
         #character {
             width: var(--w);
             height: var(--h);
@@ -336,25 +341,28 @@ Promise.all(
 
     update();
 
-    function checkHit(isFlipped) {
-        const dist = Math.abs(posX - enemyPosX);
-        const enemyIsRight = enemyPosX > posX;
-        const isFacingEnemy =
-            (enemyIsRight && !isFlipped) ||
-            (!enemyIsRight && isFlipped);
+        function checkHit(isFlipped) {
+            const dist = Math.abs(posX - enemyPosX);
+            const enemyIsRight = enemyPosX > posX;
+            const isFacingEnemy = (enemyIsRight && !isFlipped) || (!enemyIsRight && isFlipped);
 
-        if (dist < 200 && isFacingEnemy) {
-            enemy.classList.add('hit-effect');
+            if (dist < 200 && isFacingEnemy) {
+                enemy.classList.add('hit-effect');
+                enemyPosX += (enemyIsRight) ? 35 : -35;
 
-            enemyPosX += enemyIsRight ? 30 : -30;
-            enemyPosX = Math.max(60, Math.min(1220, enemyPosX));
+                // 【修正】向きによってクラスを切り替える
+                if (enemyIsRight) {
+                    // プレイヤーが左にいて、敵が右に飛ばされる時（左を向く）
+                    enemy.classList.add('face-left');
+                } else {
+                    // プレイヤーが右にいて、敵が左に飛ばされる時（右を向く）
+                    enemy.classList.remove('face-left');
+                }
 
-            if (enemyIsRight) enemy.classList.add('flip');
-            else enemy.classList.remove('flip');
-
-            setTimeout(() => enemy.classList.remove('hit-effect'), 100);
+                setTimeout(() => enemy.classList.remove('hit-effect'), 100);
+            }
         }
-    }
+
 
     async function runAttack() {
         if (isActing) return;
