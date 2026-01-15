@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Action Game - Landing Fix</title>
+    <title>Action Game - Border Fixed</title>
     <style>
-        :root { —w: 64px; —h: 64px; —scale: 6; }
+        :root { --w: 64px; --h: 64px; --scale: 6; }
         body { margin: 0; background-color: #222; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; font-family: sans-serif; }
         #game-viewport { position: relative; width: 1280px; height: 960px; background-color: #aaa; overflow: hidden; flex-shrink: 0; box-shadow: 0 0 40px rgba(0,0,0,0.5); }
         #char-container, #enemy { position: absolute; top: 500px; }
-        #enemy { width: var(—w); height: var(—h); transform: scale(var(—scale)); image-rendering: pixelated; background-image: url('reiya.png'); background-repeat: no-repeat; animation: play-6 0.6s steps(6) infinite; transition: filter 0.1s; }
-        #character { width: var(—w); height: var(—h); transform: scale(var(—scale)); image-rendering: pixelated; background-repeat: no-repeat; background-size: auto 100%; }
+        #enemy { width: var(--w); height: var(--h); transform: scale(var(--scale)); image-rendering: pixelated; background-image: url('reiya.png'); background-repeat: no-repeat; animation: play-6 0.6s steps(6) infinite; transition: filter 0.1s; }
+        #character { width: var(--w); height: var(--h); transform: scale(var(--scale)); image-rendering: pixelated; background-repeat: no-repeat; background-size: auto 100%; }
         .idle { background-image: url('Dark_ma.png'); animation: play-6 0.6s steps(6) infinite; }
         .walk-start { background-image: url('Dark_ma_rightstart.png'); animation: play-2 0.2s steps(2) forwards; }
         .walk-loop { background-image: url('Dark_ma_right.png'); animation: play-7 0.7s steps(7) infinite; }
@@ -18,14 +18,14 @@
         .attack-start { background-image: url('Dark_ma_start.png'); animation: play-4 0.4s steps(4) forwards; }
         .attack-loop { background-image: url('Dark_ma_loop.png'); animation: play-5 0.5s steps(5) infinite; }
         .attack-end { background-image: url('Dark_ma_end.png'); animation: play-3 0.3s steps(3) forwards; }
-        .flip { transform: scale(var(—scale)) scaleX(-1) !important; }
+        .flip { transform: scale(var(--scale)) scaleX(-1) !important; }
         .hit-effect { filter: brightness(10) !important; }
-        @keyframes play-7 { from { background-position: 0 0; } to { background-position: calc(var(—w) * -7) 0; } }
-        @keyframes play-6 { from { background-position: 0 0; } to { background-position: calc(var(—w) * -6) 0; } }
-        @keyframes play-5 { from { background-position: 0 0; } to { background-position: calc(var(—w) * -5) 0; } }
-        @keyframes play-4 { from { background-position: 0 0; } to { background-position: calc(var(—w) * -4) 0; } }
-        @keyframes play-3 { from { background-position: 0 0; } to { background-position: calc(var(—w) * -3) 0; } }
-        @keyframes play-2 { from { background-position: 0 0; } to { background-position: calc(var(—w) * -2) 0; } }
+        @keyframes play-7 { from { background-position: 0 0; } to { background-position: calc(var(--w) * -7) 0; } }
+        @keyframes play-6 { from { background-position: 0 0; } to { background-position: calc(var(--w) * -6) 0; } }
+        @keyframes play-5 { from { background-position: 0 0; } to { background-position: calc(var(--w) * -5) 0; } }
+        @keyframes play-4 { from { background-position: 0 0; } to { background-position: calc(var(--w) * -4) 0; } }
+        @keyframes play-3 { from { background-position: 0 0; } to { background-position: calc(var(--w) * -3) 0; } }
+        @keyframes play-2 { from { background-position: 0 0; } to { background-position: calc(var(--w) * -2) 0; } }
         .ui-root { position: absolute; bottom: 60px; width: 100%; display: flex; justify-content: space-between; padding: 0 60px; box-sizing: border-box; }
         .btn { width: 140px; height: 140px; border-radius: 50%; border: none; color: white; font-size: 3rem; font-weight: bold; background: #555; box-shadow: 0 12px #222; user-select: none; touch-action: manipulation; }
         #btnA { background: #e74c3c; box-shadow: 0 12px #c0392b; }
@@ -61,40 +61,63 @@
         function updateState(state) { char.classList.remove('idle', 'jump', 'walk-start', 'walk-loop', 'attack-start', 'attack-loop', 'attack-end'); char.classList.add(state); }
 
         function update() {
+            // 「アクション中でない」または「ジャンプ中」なら左右移動が可能
             const canMove = !isActing || char.classList.contains('jump');
+
             if (canMove) {
-                if (inputDir !== 0) { velocityX += inputDir * 1.8; char.classList.toggle('flip', inputDir === -1); }
-                else { velocityX *= 0.7; }
+                if (inputDir !== 0) {
+                    velocityX += inputDir * 1.5;
+                    char.classList.toggle('flip', inputDir === -1);
+                } else {
+                    velocityX *= 0.7; // 入力がない時は急減速
+                }
             }
-            velocityX *= 0.9; posX += velocityX;
+            
+            velocityX *= 0.9; // 共通の摩擦
+            posX += velocityX;
+
+            // 画面端制限
             if (posX < 60) posX = 60; if (posX > 1220) posX = 1220;
             if (enemyPosX < 60) enemyPosX = 60; if (enemyPosX > 1220) enemyPosX = 1220;
-            container.style.left = posX + 'px'; enemy.style.left = enemyPosX + 'px';
 
+            container.style.left = posX + 'px';
+            enemy.style.left = enemyPosX + 'px';
+
+            // アニメーション制御
             if (!isActing) {
                 const speed = Math.abs(velocityX);
                 if (char.classList.contains('jump')) {
-                    // 空中
+                    // ジャンプ中はアニメーションを上書きしない
                 } else if (speed > 1) {
                     if (!char.classList.contains('walk-start') && !char.classList.contains('walk-loop')) {
                         updateState('walk-start');
-                        setTimeout(() => { if (!isActing && inputDir !== 0 && !char.classList.contains('jump')) updateState('walk-loop'); }, 200);
+                        setTimeout(() => {
+                            if (!isActing && inputDir !== 0 && !char.classList.contains('jump')) updateState('walk-loop');
+                        }, 200);
                     }
                 } else {
-                    if (char.classList.contains('walk-loop') || char.classList.contains('walk-start')) updateState('idle');
+                    if (char.classList.contains('walk-loop') || char.classList.contains('walk-start')) {
+                        updateState('idle');
+                    }
                 }
             }
             requestAnimationFrame(update);
         }
+
         update();
 
         function checkHit(isFlipped) {
             const dist = Math.abs(posX - enemyPosX);
             const enemyIsRight = enemyPosX > posX;
             const isFacingEnemy = (enemyIsRight && !isFlipped) || (!enemyIsRight && isFlipped);
+
             if (dist < 200 && isFacingEnemy) {
                 enemy.classList.add('hit-effect');
-                enemyPosX += (enemyIsRight) ? 35 : -35;
+                // ノックバックを適用し、即座に画面端制限をかける
+                enemyPosX += (enemyIsRight) ? 30 : -30;
+                if (enemyPosX < 60) enemyPosX = 60;
+                if (enemyPosX > 1220) enemyPosX = 1220;
+
                 if (enemyIsRight) enemy.classList.add('flip'); else enemy.classList.remove('flip');
                 setTimeout(() => enemy.classList.remove('hit-effect'), 100);
             }
@@ -108,65 +131,42 @@
             const speed = Math.abs(velocityX);
             const isMoving = speed > 1.0;
             
-            // 立ち止まっている時：Dark_ma_start（4フレーム分）をしっかり見せる
+            // 1. 立ち止まっている時：初動（start: 4フレーム）
             if (!isMoving) {
                 updateState('attack-start');
-                // 100ms × 4フレーム = 400ms
-                await new Promise(r => setTimeout(r, 400)); 
+                await new Promise(r => setTimeout(r, 400)); // 100ms * 4枚
             }
 
-            // 攻撃時の踏み込み
+            // 2. 攻撃本番（loop: 5フレーム）
+            // 攻撃の瞬間に踏み込む
             const stepForward = isMoving ? 40 : 25;
             posX += isFlipped ? -stepForward : stepForward;
             
-            // 攻撃本番（loop）に切り替え
             updateState('attack-loop');
-            checkHit(isFlipped);
-            
-            // 長押し中の多段ヒット（loopは5フレームなので500ms周期が自然）
-            while (isAttackPressed) {
-                await new Promise(r => setTimeout(r, 300)); 
-                if (isAttackPressed) checkHit(isFlipped);
+            checkHit(isFlipped); // 最初のヒット判定
+
+            // Aボタンを押し続けている場合、攻撃ループを継続
+            // ※立ち止まり時は最低でも1回分（500ms）は出し切る
+            let loopCount = 0;
+            while (isAttackPressed || loopCount < 1) {
+                await new Promise(r => setTimeout(r, 300)); // 100ms * 5枚
+                loopCount++;
+                if (isAttackPressed) checkHit(isFlipped); // 長押しなら次弾判定
             }
             
-            // 振り終わり（end：3フレーム分）
+            // 3. 攻撃終わり（end: 3フレーム）
             updateState('attack-end');
-            await new Promise(r => setTimeout(r, 300));
+            await new Promise(r => setTimeout(r, 300)); // 100ms * 3枚
             
+            // 状態リセット
             isActing = false;
             updateState(inputDir !== 0 ? 'walk-loop' : 'idle');
         }
 
 
-        async function runJump() {
-            if (isActing) return;
-            isActing = true;
 
-            // ジャンプした瞬間に5px踏み込む
-            const isFlipped = char.classList.contains('flip');
-            posX += isFlipped ? -5 : 5;
 
-            updateState('jump');
-            
-            // 滞空時間
-            await new Promise(r => setTimeout(r, 500));
-            
-            isActing = false;
-
-            // 【ここを修正】着地した瞬間に移動入力があれば、即座に歩き出しアニメを適用する
-            if (inputDir !== 0) {
-                updateState('walk-start');
-                // そのまま walk-loop へ繋げる予約
-                setTimeout(() => {
-                    if (!isActing && inputDir !== 0 && !char.classList.contains('jump')) {
-                        updateState('walk-loop');
-                    }
-                }, 200);
-            } else {
-                updateState('idle');
-            }
-        }
-
+        async function runJump() { if (isActing) return; isActing = true; updateState('jump'); await new Promise(r => setTimeout(r, 500)); isActing = false; updateState('idle'); }
 
         const setupBtn = (id, down, up) => {
             const el = document.getElementById(id);
@@ -175,6 +175,7 @@
             el.addEventListener('touchstart', start); el.addEventListener('mousedown', start);
             el.addEventListener('touchend', stop); el.addEventListener('mouseup', stop);
         };
+
         setupBtn('btnLeft', () => inputDir = -1, () => inputDir = 0);
         setupBtn('btnRight', () => inputDir = 1, () => inputDir = 0);
         setupBtn('btnA', () => { isAttackPressed = true; runAttack(); }, () => isAttackPressed = false);
